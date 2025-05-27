@@ -1,0 +1,101 @@
+This file is solely for the purposes of compiling my code neatly into one chunk (less scrolling, yay) which makes troubleshooting
+and querying Chat a bit easier.
+
+import ollama
+import numpy as np
+import torch
+
+question = "What is a Kalman filter"
+document = "Chapter 5: AR and Kalman Filters"
+
+import tiktoken
+
+def num_tokens_from_str(string: str, encoding_name: str) -> int:
+    """Returns number of tokens in a text string"""
+    encoding = tiktoken.get_encoding(encoding_name)
+    num_tokens = len(encoding.encode(string))
+    return encoding.encode(string), num_tokens
+
+num_tokens_from_str(question, "cl100k_base")
+
+from langchain_ollama import OllamaLLM, OllamaEmbeddings
+from langchain_core.vectorstores import InMemoryVectorStore
+
+embeddings = OllamaEmbeddings(model="llama3.2")
+
+query_result = embeddings.embed_query(question)
+document_result = embeddings.embed_query(document)
+
+print(str(query_result)[:100])
+print(len(query_result))
+
+def cosine_similarity(vec1, vec2):
+    dot_product = np.dot(vec1, vec2)
+    norm_vec1 = np.linalg.norm(vec1)
+    norm_vec2 = np.linalg.norm(vec2)
+    return dot_product/(norm_vec1 * norm_vec2)
+
+similarity = cosine_similarity(query_result, document_result)
+print(similarity)
+
+from langchain_community.document_loaders import PyPDFLoader
+
+loader = PyPDFLoader("Lecture 1 - Basic circuit theory.pdf")
+loader2 = PyPDFLoader("Lecture 7- The MOS transistors.pdf")
+docs = loader.load()
+docs2 = loader2.load()
+
+print(f"Total characters: {len(docs[2].page_content)}")
+print(f"Total characters: {len(docs2[5].page_content)}")
+print(len(docs2))
+print(docs2[5].page_content[:500])
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+all_docs = docs + docs2
+
+text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+    chunk_size = 300,
+    chunk_overlap=50
+)
+
+#Make splits
+splits = text_splitter.split_documents(all_docs)
+
+vectorstore = InMemoryVectorStore.from_documents(splits, embedding=embeddings)
+
+retriever = vectorstore.as_retriever(search_kwargs={'k': 3})
+
+docsearch = retriever.get_relevant_documents("How does an NMOS Transistor work")
+docsearch2 = retriever.get_relevant_documents("List the basic axioms of circuit theory")
+
+print(docsearch2)
+print(docsearch)
+
+docsearch3 = retriever.get_relevant_documents("What is a linear dependent source")
+
+print(docsearch3)
+
+print(docsearch3[0].page_content)
+
+from langchain.prompts import PromptTemplate
+
+template = """Answer the following question only using the following context:
+{context}
+
+If the answer is not contained in the context, respond with:
+"I cannot answer this question because the necessary information was not found in the provided documents."
+
+Question: {question}
+"""
+
+prompt = PromptTemplate.from_template(template)
+prompt
+
+llm = OllamaLLM(model = "llama3.2")
+
+chain = prompt | llm
+
+print(chain.invoke({"context":all_docs, "question":"Explain the operation principle"}))
+print(chain.invoke({"context":all_docs, "question":"Explain what happens when there is negative gate voltage"}))
+print(chain.invoke({"context":all_docs, "question":"How does a bandstop filter work"}))
