@@ -99,3 +99,4 @@ chain = prompt | llm
 print(chain.invoke({"context":all_docs, "question":"Explain the operation principle"}))
 print(chain.invoke({"context":all_docs, "question":"Explain what happens when there is negative gate voltage"}))
 print(chain.invoke({"context":all_docs, "question":"How does a bandstop filter work"}))
+print(chain.invoke({"context":all_docs, "question":"State Norton's Theorem"}))
