@@ -63,11 +63,7 @@ def context_retriever(retriever_obj, input_context: str):
 retriever = vectorstore.as_retriever(search_kwargs={'k': 3})
 
 # call the function with retriever and query string
-results = context_retriever(retriever, "Explain Faraday's and Lenz's law")
-
-
-print(document_loader)
-print(results)
+#results = context_retriever(retriever, "Explain Faraday's and Lenz's law")
 
 
 def pipeline_combined(model_name = MODEL_NAME):
