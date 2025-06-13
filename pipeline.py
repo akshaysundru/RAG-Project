@@ -1,10 +1,13 @@
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-import ollama
 from langchain_ollama import OllamaLLM
-from langchain_chroma import Chroma
+import faiss
+from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain_community.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
+from langchain_community.retrievers import BM25Retriever
+from langchain.retrievers import EnsembleRetriever
 import os
 
 MODEL_NAME = "llama3.2"
@@ -15,7 +18,7 @@ def load_docs():
 
     for root, dirs, files in os.walk("."):
         # Skip chroma_db folder
-        if "chroma_db" in root or "git" in root:
+        if "git" in root:
             continue
         for file in files:
             if file.endswith(".pdf"):
@@ -48,35 +51,64 @@ def embed_splitting(document_loader, embedding_model):
 
 embeddings, splits = embed_splitting(document_loader, embedding_model)
 
-vectorstore = Chroma.from_documents(
-        documents=splits,  # these are already LangChain `Document` objects
-        embedding=embeddings,
-        collection_name="circuit_docs",
-        persist_directory="./chroma_db"
-    )
+dim = len(embeddings.embed_query("test sentence"))
+index = faiss.IndexFlatL2(dim)
 
-# define your function to query it
-def context_retriever(retriever_obj, input_context: str):
-    return retriever_obj.invoke(input_context)
+if os.path.exists("faiss_index"):
+    print("Loading FAISS index from disk...")
+    vector_store = FAISS.load_local("faiss_index", embeddings=embeddings, allow_dangerous_deserialization=True)
+else:
+    print("Building FAISS index from scratch...")
+    dim = len(embeddings.embed_query("test sentence"))
+    index = faiss.IndexFlatL2(dim)
+    vector_store = FAISS(
+        embedding_function=embeddings,
+        index=index,
+        docstore=InMemoryDocstore(),
+        index_to_docstore_id={},
+    )
+    vector_store.add_documents(splits)
+    vector_store.save_local("faiss_index")
 
 # create the retriever object once
-retriever = vectorstore.as_retriever(search_kwargs={'k': 3})
+semantic_retriever = vector_store.as_retriever(search_kwargs={'k': 4})
 
 # call the function with retriever and query string
 #results = context_retriever(retriever, "Explain Faraday's and Lenz's law")
 
+bm25_retriever = BM25Retriever.from_documents(splits)
+bm25_retriever.k = 4
+
+
+ensemble_retriever = EnsembleRetriever(retrievers= [semantic_retriever, bm25_retriever], weights = [0.67, 0.33], search_kwargs={"k": 3})
+
+def hybrid_search(retriever_obj, input_context: str):
+    return retriever_obj.invoke(input_context)
 
 def pipeline_combined(model_name = MODEL_NAME):
 
     llm = OllamaLLM(model = MODEL_NAME)
 
-    template = """Answer the following question only using the following context:
-    {context}
+    template = """You are an expert assistant answering based only on the provided context.
 
-    If the answer is not contained in the context, respond with:
+    Here are 3 relevant document chunks retrieved:
+
+    Chunk 1:
+    {chunk1}
+
+    Chunk 2:
+    {chunk2}
+
+    Chunk 3:
+    {chunk3}
+    
+    Chunk 4:
+    {chunk4}
+    
+    Use all relevant information above to answer the question below. If the answer isn't found in the chunks, say:
     "I cannot answer this question because the necessary information was not found in the provided documents."
 
-    When answering, include the **source file name** and **slide/page number** if available.
+    When answering, cite the **source file name** and **slide/page number** if available.
 
     Question: {question}
     """
@@ -91,16 +123,19 @@ def pipeline_combined(model_name = MODEL_NAME):
             print("Have a good day.")
             break
 
-        context_docs = context_retriever(retriever, user_input)
-
-        context = "\n\n".join(
-        f"Source: {doc.metadata.get('source', 'unknown')}, Page: {doc.metadata.get('page', 'unknown')}\n{doc.page_content}"
-        for doc in context_docs
-        )
+        context_docs = hybrid_search(ensemble_retriever, user_input)[:4]
 
         # Pass context and question into the chain
+        chunks = [
+            f"Source: {doc.metadata.get('source', 'unknown')}, Page: {doc.metadata.get('page', 'unknown')}\n{doc.page_content}"
+            for doc in context_docs
+        ]
+
         response = chain.invoke({
-            "context": context,
+            "chunk1": chunks[0],
+            "chunk2": chunks[1],
+            "chunk3": chunks[2],
+            "chunk4": chunks[3],
             "question": user_input
         })
 
