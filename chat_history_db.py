@@ -14,9 +14,19 @@ class ChatHistory:
             CREATE TABLE IF NOT EXISTS History (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
-            session_id INTEGER NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES Session_info (session_id),
             user_input TEXT NOT NULL,
             bot_output TEXT NOT NULL
+            )
+            """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS Session_info (
+            PRIMARY KEY session_id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            token_count INTEGER NOT NULL
             )
             """
         )

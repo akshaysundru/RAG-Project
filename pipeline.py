@@ -79,17 +79,9 @@ semantic_retriever = vector_store.as_retriever(search_kwargs={'k': 4})
 bm25_retriever = BM25Retriever.from_documents(splits)
 bm25_retriever.k = 4
 
-
 ensemble_retriever = EnsembleRetriever(retrievers= [semantic_retriever, bm25_retriever], weights = [0.67, 0.33], search_kwargs={"k": 3})
 
-def hybrid_search(retriever_obj, input_context: str):
-    return retriever_obj.invoke(input_context)
-
-def pipeline_combined(model_name = MODEL_NAME):
-
-    llm = OllamaLLM(model = MODEL_NAME)
-
-    template = """You are an expert assistant answering based only on the provided context.
+input_template = """You are an expert assistant answering based only on the provided context.
 
     Here are 3 relevant document chunks retrieved:
 
@@ -113,7 +105,14 @@ def pipeline_combined(model_name = MODEL_NAME):
     Question: {question}
     """
 
-    prompt = PromptTemplate.from_template(template)
+def hybrid_search(retriever_obj, input_context: str):
+    return retriever_obj.invoke(input_context)
+
+def pipeline_combined(model_name = MODEL_NAME, prompt_template = input_template):
+
+    llm = OllamaLLM(model = MODEL_NAME)
+
+    prompt = PromptTemplate.from_template(prompt_template)
     chain = prompt | llm
     print(f"\n Model {model_name} has been initiated. Please feel free to ask any questions or type 'exit' to end this session")
     

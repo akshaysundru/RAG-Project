@@ -1,3 +1,4 @@
 chroma_db/
 faiss_index/
 chathistory.db
+__pycache__/

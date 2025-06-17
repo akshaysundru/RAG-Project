@@ -7,6 +7,8 @@ To run the code as is make sure you have the following dependencies downloaded. 
 - Miniconda
 - ipykernel
 - Python + assoc. libraries
+- HTML/CSS/JS
+- Some form of DB, I'm using SQLite
 
 Currently for prototyping I will be using Llama 3.2, as it appears to be a model that runs on my Macbook Pro M3 fine, though if i get a PC set up I would like to run the Llama 4 models.
 
