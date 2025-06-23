@@ -64,18 +64,19 @@ class InSessionMemoryOps(BaseChatMessageHistory):
         self.current_turn = self.db.get_next_turn(self.session_id)
 
     def add_message(self, message):
-        self.db.insert_messages(self.session_id, self.current_turn, "human", message.content)
+        # Human starts a new turn — use current turn
+        if isinstance(message, HumanMessage):
+            self.db.insert_messages(self.session_id, self.current_turn, "human", message.content)
+        elif isinstance(message, AIMessage):
+            self.db.insert_messages(self.session_id, self.current_turn, "ai", message.content)
+            # After the pair is complete, increment
+            self.current_turn += 1
 
-    def add_ai_message(self, message):
-        self.db.insert_messages(self.session_id, self.current_turn, "ai", message.content)
-        self.current_turn += 1
-    
     @property
     def messages(self):
         return self.db.load_session_messages(self.session_id)
 
     def clear(self):
-        # Required by BaseChatMessageHistory; even a pass is fine
         pass
 
 engine = create_engine("sqlite:///session_history.db", echo = True)

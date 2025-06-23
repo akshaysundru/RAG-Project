@@ -2,3 +2,4 @@ chroma_db/
 faiss_index/
 chathistory.db
 __pycache__/
+session_history.db
