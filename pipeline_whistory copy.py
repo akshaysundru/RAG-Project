@@ -8,7 +8,6 @@ from langchain_community.vectorstores import FAISS
 import os
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
-from chat_memory import InSessionMemoryHistory, ChatHistory
 from datetime import datetime
 import uuid
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
@@ -17,6 +16,7 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain.schema import HumanMessage, AIMessage
+from session_history import SessionMemoryTableOps, SessionLocal, InSessionMemoryOps
 
 MODEL_NAME = "llama3.2"
 llm = OllamaLLM(model= MODEL_NAME)
@@ -127,15 +127,18 @@ input_prompt = ChatPromptTemplate.from_messages(
 question_answer_chain = create_stuff_documents_chain(llm, input_prompt)
 rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-history = ChatHistory()
+
+### stuff I'm golden with, from here we need to define history and inject into the pipeline
+
+history = SessionMemoryTableOps(SessionLocal)
 
 ### Statefully manage chat history ###
-store = {}
+chat_history_cache = {}
 
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = InSessionMemoryHistory(session_id, db=history)
-    return store[session_id]
+def get_session_history(session_id: str):
+    if session_id not in chat_history_cache:
+        chat_history_cache[session_id] = InSessionMemoryOps(session_id, db=history)
+    return chat_history_cache[session_id]
 
 
 conversational_rag_chain = RunnableWithMessageHistory(
@@ -149,29 +152,22 @@ conversational_rag_chain = RunnableWithMessageHistory(
 def pipeline_combined():
     session_id = str(uuid.uuid4())[:8]
     print(f"\nSession ID: {session_id}")
-    memory = InSessionMemoryHistory(session_id=session_id, db=history)
 
     print(f"\nModel {MODEL_NAME} has been initiated with memory. Please feel free to ask questions or type 'exit' to quit.")
-    try:
-        while True:
-            user_input = input("You: ")
-            
-            if user_input.lower() in ["exit", "quit"]:
-                print("Session ended. Have a good day.")
-                break
+    while True:
+        user_input = input("You: ")
+        
+        if user_input.lower() in ["exit", "quit"]:
+            print("Session ended. Have a good day.")
+            break
 
-            response = conversational_rag_chain.invoke(
-                {"input": user_input},
-                config={"configurable": {"session_id": session_id}},
-            )
-            print(f"LLM: {response['answer']}\n")
+        response = conversational_rag_chain.invoke(
+            {"input": user_input},
+            config={"configurable": {"session_id": session_id}},
+        )
+        print(f"LLM: {response['answer']}\n")
 
-            memory.add_messages(HumanMessage(user_input))
-            memory.add_ai_message(AIMessage(response['answer']))
-
-            # Note: The memory is managed by the chain via get_session_history
-            # So you don't need to manually add messages here
-    finally:
-        history.close()
+        # Note: The memory is managed by the chain via get_session_history
+        # So you don't need to manually add messages here
 
 pipeline_combined()
