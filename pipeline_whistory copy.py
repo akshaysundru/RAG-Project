@@ -113,7 +113,7 @@ input_template = """You are an expert assistant answering based only on the prov
     Use all relevant information above to answer the question below. If the answer isn't found in the provided context, say:
     "I cannot answer this question because the necessary information was not found in the provided documents."
 
-    When answering, cite the **source file name** and **slide/page number** if available.
+    When answering, cite the **source file name** and **page number** as seen in the context above. Do not invent citations.
     """
 
 input_prompt = ChatPromptTemplate.from_messages(
@@ -150,8 +150,20 @@ conversational_rag_chain = RunnableWithMessageHistory(
 )
 
 def pipeline_combined():
-    session_id = str(uuid.uuid4())[:8]
-    print(f"\nSession ID: {session_id}")
+     
+    while True:
+        session_id = input("Enter session ID to resume, or press Enter to start new: ").strip()
+        if not session_id:
+            session_id = str(uuid.uuid4())[:8]
+            print(f"Starting new session: {session_id}")
+            history.add_session(session_id=session_id, turns_used=0)
+            break
+        else:
+            if history.session_exists(session_id):
+                print(f"Resuming session: {session_id}")
+                break
+            else:
+                print(f"Session ID '{session_id}' not found. Please try again.")
 
     print(f"\nModel {MODEL_NAME} has been initiated with memory. Please feel free to ask questions or type 'exit' to quit.")
     while True:
