@@ -1,6 +1,6 @@
 import sqlite3
 from typing import List
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, mapped_column, Mapped
 from datetime import datetime
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -25,7 +25,6 @@ class ChatHistory(Base):
     __tablename__ = "ChatHistory"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    timestamp: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     turn_number: Mapped[int] = mapped_column(nullable=False)
     role: Mapped[str] = mapped_column(nullable=False) #human or ai
     message: Mapped[str] = mapped_column(nullable=False)
@@ -36,7 +35,25 @@ class ChatHistory(Base):
         back_populates="messages"
     )
 
+    session_logging: Mapped["SessionLogging"] = relationship(
+        back_populates="chat_logging"
+        uselist = False
+    )
 
+class SessionLogging(Base):
+
+    __tablename__ = "SessionLogging"
+
+    timestamp: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    retrieval_time: Mapped[int] = mapped_column(nullable=False)
+    response_time: Mapped[int] = mapped_column(nullable=False)
+    retrievals: Mapped[list] = mapped_column(JSON, nullable=False)
+    
+    chat_history_id: Mapped[int] = mapped_column(ForeignKey("ChatHistory.id"), primary_key = True, nullable=False)
+
+    chat_logging: Mapped["ChatHistory"] = relationship(
+        back_populates="session_logging"
+    )
 
 
 class SessionMemoryTableOps:
@@ -53,11 +70,9 @@ class SessionMemoryTableOps:
             db.commit()
 
     def insert_messages(self, session_id, turn_number, role, message):
-        timestamp = datetime.now()
         with self.session() as db:
             db.add(ChatHistory(
                 session_id = session_id,
-                timestamp = timestamp,
                 turn_number = turn_number,
                 role = role,
                 message = message
