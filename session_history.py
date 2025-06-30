@@ -18,6 +18,7 @@ class SessionInformation(Base):
 
     messages: Mapped[List["ChatHistory"]] = relationship(back_populates="session_information", cascade="all, delete-orphan")
 
+    interaction_logs: Mapped[List["SessionLogging"]] = relationship(back_populates="session_number", cascade="all, delete-orphan")
 
 
 class ChatHistory(Base):
@@ -35,25 +36,24 @@ class ChatHistory(Base):
         back_populates="messages"
     )
 
-    session_logging: Mapped["SessionLogging"] = relationship(
-        back_populates="chat_logging"
-        uselist = False
-    )
 
 class SessionLogging(Base):
 
     __tablename__ = "SessionLogging"
 
+    interaction_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     timestamp: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    retrieval_time: Mapped[int] = mapped_column(nullable=False)
+    #retrieval_time: Mapped[int] = mapped_column(nullable=False)
     response_time: Mapped[int] = mapped_column(nullable=False)
     retrievals: Mapped[list] = mapped_column(JSON, nullable=False)
     
-    chat_history_id: Mapped[int] = mapped_column(ForeignKey("ChatHistory.id"), primary_key = True, nullable=False)
+    session_id: Mapped[str] = mapped_column(ForeignKey("SessionInformation.session_id"), nullable=False)
 
-    chat_logging: Mapped["ChatHistory"] = relationship(
-        back_populates="session_logging"
+
+    session_number: Mapped["SessionInformation"] = relationship(
+        back_populates="interaction_logs"
     )
+
 
 
 class SessionMemoryTableOps:
@@ -78,6 +78,19 @@ class SessionMemoryTableOps:
                 message = message
             ))
 
+            db.commit()
+
+    def insert_session_logs(self, interaction_id, session_id, turn_number, response_time, retrievals):
+        timestamp = datetime.now()
+        with self.session() as db:
+            db.add(SessionLogging(
+                interaction_id = interaction_id,
+                timestamp = timestamp,
+                session_id = session_id,
+                turn_number = turn_number,
+                response_time = response_time,
+                retrievals = retrievals
+            ))
             db.commit()
 
     def update_turns_used(self, session_id, turn_number):
