@@ -17,6 +17,7 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain.schema import HumanMessage, AIMessage
 from session_history import SessionMemoryTableOps, SessionLocal, InSessionMemoryOps
+import torch
 
 MODEL_NAME = "llama3.2"
 llm = OllamaLLM(model= MODEL_NAME)
@@ -36,12 +37,12 @@ def load_docs():
     return document_loader
 
 document_loader = load_docs()
-document_loader
 
-embedding_model ="sentence-transformers/all-MiniLM-L6-v2" #embedding matrix model
+embedding_model ="./local_models/all-MiniLM-L6-v2" #embedding matrix model
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def embed_splitting(document_loader, embedding_model):
-    embeddings = HuggingFaceEmbeddings(model = embedding_model, encode_kwargs={'normalize_embeddings': True})
+    embeddings = HuggingFaceEmbeddings(model = embedding_model, model_kwargs= {"device":device}, encode_kwargs={'normalize_embeddings': True})
 
     doc_store = []
     for file in document_loader:
@@ -63,14 +64,14 @@ embeddings, splits = embed_splitting(document_loader, embedding_model)
 
 dim = len(embeddings.embed_query("test sentence"))
 index = faiss.IndexFlatL2(dim)
+gpu_index = faiss.index_cpu_to_all_gpus(index=index)
 
 if os.path.exists("faiss_index"):
     print("Loading FAISS index from disk...")
     vector_store = FAISS.load_local("faiss_index", embeddings=embeddings, allow_dangerous_deserialization=True)
 else:
     print("Building FAISS index from scratch...")
-    dim = len(embeddings.embed_query("test sentence"))
-    index = faiss.IndexFlatL2(dim)
+    gpu_index = faiss.index_cpu_to_all_gpus(index=index)
     vector_store = FAISS(
         embedding_function=embeddings,
         index=index,
@@ -181,5 +182,7 @@ def pipeline_combined():
 
         # Note: The memory is managed by the chain via get_session_history
         # So you don't need to manually add messages here
+
+        
 
 pipeline_combined()

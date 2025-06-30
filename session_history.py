@@ -36,7 +36,7 @@ class ChatHistory(Base):
     )
 
     session_logging: Mapped["SessionLogging"] = relationship(
-        back_populates="chat_logging"
+        back_populates="chat_logging",
         uselist = False
     )
 
