@@ -4,3 +4,4 @@ chathistory.db
 __pycache__/
 session_history.db
 local_models
+splits_cache.pkl
