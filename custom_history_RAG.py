@@ -5,6 +5,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaLLM
 import pickle
+from session_history import SessionMemoryTableOps, SessionLocal, InSessionMemoryOps
+from langchain_core.messages import HumanMessage, AIMessage
 
 MODEL_NAME = "llama3.2"
 llm = OllamaLLM(model= MODEL_NAME)
@@ -206,12 +208,15 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
-store = {}
+history = SessionMemoryTableOps(SessionLocal)
 
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()
-    return store[session_id]
+### Statefully manage chat history ###
+chat_history_cache = {}
+
+def get_session_history(session_id: str):
+    if session_id not in chat_history_cache:
+        chat_history_cache[session_id] = InSessionMemoryOps(session_id, db=history)
+    return chat_history_cache[session_id]
 
 history_aware_chain = RunnableWithMessageHistory(
     chain,
@@ -223,11 +228,22 @@ history_aware_chain = RunnableWithMessageHistory(
 import uuid
 
 def pipeline():
-
-    session_id = str(uuid.uuid4())[:8]
-    print(f"Session ID: {session_id}")
     
-    history = get_session_history(session_id)
+    while True:
+        session_id = input("Enter session ID to resume, or press Enter to start new: ").strip()
+        if not session_id:
+            session_id = str(uuid.uuid4())[:8]
+            print(f"Starting new session: {session_id}")
+            history.add_session(session_id=session_id, turns_used=0)
+            break
+        else:
+            if history.session_exists(session_id):
+                print(f"Resuming session: {session_id}")
+                break
+            else:
+                print(f"Session ID '{session_id}' not found. Please try again.")
+    
+    memory = get_session_history(session_id)
 
     print(f"\nModel {MODEL_NAME} has been initiated with memory. Please feel free to ask questions or type 'exit' to quit.")
     while True:
@@ -242,25 +258,12 @@ def pipeline():
         MAX_HISTORY_TURNS = 1
         recontextual_chain = contextual_prompt | llm
         rephrased_question = recontextual_chain.invoke(
-            {'chat_history': history.messages[-MAX_HISTORY_TURNS:],
+            {'chat_history': memory.messages[-MAX_HISTORY_TURNS:],
              'input': user_input})
         
         print(f"{rephrased_question} \n\n\n")
 
         context_injection = (ensemble_retriever | RunnableParallel({'context': chunk_runnable, 'metadata': metadata_runnable})).invoke(rephrased_question)
-
-        expected_context = ensemble_retriever.invoke(user_input)
-        rephrased_context = ensemble_retriever.invoke(rephrased_question)
-
-        for i in expected_context:
-            source = i.metadata["source"]
-            page_label = i.metadata["page_label"]
-            print(f"Expected metdata is:\n\n {source}, page number {page_label}")
-
-        for i in rephrased_context:
-            source = i.metadata["source"]
-            page_label = i.metadata["page_label"]
-            print(f"Rephrased question metdata is:\n\n {source}, page number {page_label}")
         
         print(f"Metadata:\n, {context_injection['metadata']}\n\n")
         
@@ -271,6 +274,7 @@ def pipeline():
             config={"configurable": {"session_id": session_id}}
         )
         
+        memory.add_turn(HumanMessage(content=user_input), AIMessage(content=response))
         print(f"LLM: {response}\n")
 
 

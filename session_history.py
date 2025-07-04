@@ -4,7 +4,6 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, F
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, mapped_column, Mapped
 from datetime import datetime
 from langchain_core.chat_history import BaseChatMessageHistory
-
 from langchain_core.messages import HumanMessage, AIMessage
 
 Base = declarative_base()
@@ -27,7 +26,7 @@ class ChatHistory(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     turn_number: Mapped[int] = mapped_column(nullable=False)
-    role: Mapped[str] = mapped_column(nullable=False) #human or ai
+    role: Mapped[str] = mapped_column(nullable=False)
     message: Mapped[str] = mapped_column(nullable=False)
 
     session_id: Mapped[str] = mapped_column(ForeignKey("SessionInformation.session_id"), nullable=False)
@@ -43,17 +42,14 @@ class SessionLogging(Base):
 
     interaction_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     timestamp: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    #retrieval_time: Mapped[int] = mapped_column(nullable=False)
     response_time: Mapped[int] = mapped_column(nullable=False)
     retrievals: Mapped[list] = mapped_column(JSON, nullable=False)
-    
-    session_id: Mapped[str] = mapped_column(ForeignKey("SessionInformation.session_id"), nullable=False)
 
+    session_id: Mapped[str] = mapped_column(ForeignKey("SessionInformation.session_id"), nullable=False)
 
     session_number: Mapped["SessionInformation"] = relationship(
         back_populates="interaction_logs"
     )
-
 
 
 class SessionMemoryTableOps:
@@ -77,7 +73,6 @@ class SessionMemoryTableOps:
                 role = role,
                 message = message
             ))
-
             db.commit()
 
     def insert_session_logs(self, interaction_id, session_id, turn_number, response_time, retrievals):
@@ -87,7 +82,6 @@ class SessionMemoryTableOps:
                 interaction_id = interaction_id,
                 timestamp = timestamp,
                 session_id = session_id,
-                turn_number = turn_number,
                 response_time = response_time,
                 retrievals = retrievals
             ))
@@ -117,13 +111,10 @@ class SessionMemoryTableOps:
         with self.session() as db:
             result = db.query(ChatHistory).filter_by(session_id=session_id).order_by(ChatHistory.turn_number.desc()).first()
             return result.turn_number + 1 if result else 1
-        
+
     def session_exists(self, session_id: str) -> bool:
         with self.session() as db:
             return db.query(ChatHistory).filter_by(session_id=session_id).first() is not None
-
-
-
 
 
 class InSessionMemoryOps(BaseChatMessageHistory):
@@ -134,14 +125,18 @@ class InSessionMemoryOps(BaseChatMessageHistory):
         self.current_turn = self.db.get_next_turn(self.session_id)
 
     def add_message(self, message):
-        # Human starts a new turn — use current turn
         if isinstance(message, HumanMessage):
             self.db.insert_messages(self.session_id, self.current_turn, "human", message.content)
         elif isinstance(message, AIMessage):
             self.db.insert_messages(self.session_id, self.current_turn, "ai", message.content)
             self.db.update_turns_used(self.session_id, self.current_turn)
-            # After the pair is complete, increment
             self.current_turn += 1
+
+    def add_turn(self, human_message: str, ai_message: str):
+        self.db.insert_messages(self.session_id, self.current_turn, "human", human_message)
+        self.db.insert_messages(self.session_id, self.current_turn, "ai", ai_message)
+        self.db.update_turns_used(self.session_id, self.current_turn)
+        self.current_turn += 1
 
     @property
     def messages(self):
@@ -151,6 +146,6 @@ class InSessionMemoryOps(BaseChatMessageHistory):
         pass
 
 
-engine = create_engine("sqlite:///chathistory.db", echo = False)
+engine = create_engine("sqlite:///chathistory.db", echo=False)
 SessionLocal = sessionmaker(bind=engine)
 Base.metadata.create_all(engine)
