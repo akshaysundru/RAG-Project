@@ -11,7 +11,13 @@ FAISS_INDEX_PATH = "faiss_index"
 
 def build_vector_store(documents, embeddings, splits):
     dim = len(embeddings.embed_query("test sentence"))
-    index = faiss.IndexFlatL2(dim)
+
+    # Create FAISS CPU index first
+    cpu_index = faiss.IndexFlatL2(dim)
+
+    # Move FAISS index to GPU
+    gpu_res = faiss.StandardGpuResources()
+    gpu_index = faiss.index_cpu_to_gpu(gpu_res, 0, cpu_index)
 
     if os.path.exists(FAISS_INDEX_PATH):
         print("Loading FAISS index from disk...")
@@ -20,7 +26,7 @@ def build_vector_store(documents, embeddings, splits):
         print("Building FAISS index from scratch...")
         vector_store = FAISS(
             embedding_function=embeddings,
-            index=index,
+            index=gpu_index,   # This is now the GPU index
             docstore=InMemoryDocstore(),
             index_to_docstore_id={},
         )

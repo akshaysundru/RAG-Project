@@ -50,8 +50,8 @@ while True:
     
     print(f"{rephrased_question} \n\n\n")
 
-    context_injection = (ensemble_retriever | RunnableParallel({'context': chunk_runnable, 'metadata': metadata_runnable})).invoke(rephrased_question)
-
+    context_chain = (ensemble_retriever | RunnableParallel({'context': chunk_runnable, 'metadata': metadata_runnable}))
+    context_injection = context_chain.invoke(rephrased_question)
     print("Metadata:\n", context_injection['metadata'])
     
     response = history_aware_chain.invoke(
@@ -61,4 +61,16 @@ while True:
         config={"configurable": {"session_id": session_id}}
     )
     
+    if "I cannot answer" in response:
+
+        user_injection = context_chain.invoke(user_input)
+        response = history_aware_chain.invoke(
+        {**user_injection,
+        'input': user_input,
+        'question': user_input},
+        config={"configurable": {"session_id": session_id}}
+        )
+
     print(f"LLM: {response}\n")
+
+print(get_session_history(session_id).messages)
