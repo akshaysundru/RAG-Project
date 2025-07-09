@@ -7,17 +7,11 @@ from prompts import prompt_template, contextual_prompt, chunk_runnable, metadata
 from langchain_ollama import OllamaLLM
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 from document_writing import DocumentLogger
+from session_history import get_session_history, session_exists, save_store
 
 ensemble_retriever, semantic_retriever, bm25_retriever = get_retrievers()
 MODEL_NAME = "llama3.2"
 llm = OllamaLLM(model = MODEL_NAME)
-
-store = {}
-
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()
-    return store[session_id]
 
 chain = prompt_template | llm
 
@@ -35,11 +29,11 @@ while True:
         session_id = str(uuid.uuid4())[:8]
         print(f"Starting new session: {session_id}")
         break
-    elif session_id in store:
+    elif session_exists(session_id):
         print(f"Resuming session: {session_id}")
         break
     else:
-        print(f"Session ID '{session_id}' not found. Please try again.")
+        print(f"Session ID '{session_id}' not found. Available sessions: {list_sessions()}")
 
 history = get_session_history(session_id)
 document = DocumentLogger(session_id)
@@ -73,7 +67,7 @@ while True:
         config={"configurable": {"session_id": session_id}}
     )
     
-    if "I cannot answer" in response:
+    if "cannot" in response:
 
         user_injection = context_chain.invoke(user_input)
         response_fallback = history_aware_chain.invoke(

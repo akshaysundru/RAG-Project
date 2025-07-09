@@ -5,3 +5,5 @@ __pycache__/
 session_history.db
 local_models
 splits_cache.pkl
+session_store.pkl
+chat_logs/
