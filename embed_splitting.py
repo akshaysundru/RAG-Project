@@ -9,7 +9,7 @@ import pickle
 import torch
 from transformers import AutoTokenizer, AutoModel
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def load_docs(pdf_folder = "./pdf_folder"):
     
