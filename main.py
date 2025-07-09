@@ -6,6 +6,7 @@ from vectorstore_retrievers import get_retrievers
 from prompts import prompt_template, contextual_prompt, chunk_runnable, metadata_runnable
 from langchain_ollama import OllamaLLM
 from langchain_core.runnables import RunnableLambda, RunnableParallel
+from document_writing import DocumentLogger
 
 ensemble_retriever, semantic_retriever, bm25_retriever = get_retrievers()
 MODEL_NAME = "llama3.2"
@@ -27,10 +28,21 @@ history_aware_chain = RunnableWithMessageHistory(
     history_messages_key="chat_history"
 )
 
-session_id = str(uuid.uuid4())[:8]
-print(f"Session ID: {session_id}")
+# Session selection loop
+while True:
+    session_id = input("Enter session ID to resume, or press Enter to start new: ").strip()
+    if not session_id:
+        session_id = str(uuid.uuid4())[:8]
+        print(f"Starting new session: {session_id}")
+        break
+    elif session_id in store:
+        print(f"Resuming session: {session_id}")
+        break
+    else:
+        print(f"Session ID '{session_id}' not found. Please try again.")
 
 history = get_session_history(session_id)
+document = DocumentLogger(session_id)
 
 print(f"\nModel {MODEL_NAME} has been initiated with memory. Please feel free to ask questions or type 'exit' to quit.")
 while True:
@@ -64,13 +76,16 @@ while True:
     if "I cannot answer" in response:
 
         user_injection = context_chain.invoke(user_input)
-        response = history_aware_chain.invoke(
+        response_fallback = history_aware_chain.invoke(
         {**user_injection,
         'input': user_input,
         'question': user_input},
         config={"configurable": {"session_id": session_id}}
         )
-
-    print(f"LLM: {response}\n")
+        print(f"LLM (Fallback): {response_fallback}\n")
+        document.write_interaction(user_input, response_fallback, context_injection['metadata'])
+    else:
+        print(f"LLM: {response}\n")
+        document.write_interaction(rephrased_question, response, context_injection['metadata'])
 
 print(get_session_history(session_id).messages)
