@@ -9,15 +9,11 @@ from embed_splitting import load_docs, get_splits
 EMBEDDING_MODEL_PATH = "./local_models/all-MiniLM-L6-v2"
 FAISS_INDEX_PATH = "faiss_index"
 
-def build_vector_store(documents, embeddings, splits):
+def build_vector_store(embeddings, splits):
     dim = len(embeddings.embed_query("test sentence"))
 
     # Create FAISS CPU index first
-    cpu_index = faiss.IndexFlatL2(dim)
-
-    # Move FAISS index to GPU
-    gpu_res = faiss.StandardGpuResources()
-    gpu_index = faiss.index_cpu_to_gpu(gpu_res, 0, cpu_index)
+    index = faiss.IndexFlatL2(dim)
 
     if os.path.exists(FAISS_INDEX_PATH):
         print("Loading FAISS index from disk...")
@@ -26,7 +22,7 @@ def build_vector_store(documents, embeddings, splits):
         print("Building FAISS index from scratch...")
         vector_store = FAISS(
             embedding_function=embeddings,
-            index=gpu_index,   # This is now the GPU index
+            index=index,   # This is now the GPU index
             docstore=InMemoryDocstore(),
             index_to_docstore_id={},
         )
@@ -39,12 +35,12 @@ def get_retrievers(pdf_folder="./pdf_folder", k=4):
     # Load documents and splits
     documents = load_docs(pdf_folder)
     embeddings, splits = get_splits(documents, EMBEDDING_MODEL_PATH)
-
+    
     # Build vector store
-    vector_store = build_vector_store(documents, embeddings, splits)
-
-    # Create retrievers
+    vector_store = build_vector_store(embeddings, splits)
+    # Create retrievers"
     semantic_retriever = vector_store.as_retriever(search_kwargs={'k': k})
+    
     bm25_retriever = BM25Retriever.from_documents(splits)
     bm25_retriever.k = k
 
@@ -54,4 +50,17 @@ def get_retrievers(pdf_folder="./pdf_folder", k=4):
         weights=[0.5, 0.5]
     )
 
-    return ensemble_retriever, semantic_retriever, bm25_retriever
+    return semantic_retriever, bm25_retriever, ensemble_retriever
+
+if __name__ == "__main__":
+    print(faiss.omp_get_max_threads())
+    print(get_retrievers())
+
+
+"""before running files set following in terminal
+
+export OMP_NUM_THREADS=1
+export KMP_INIT_AT_FORK=FALSE
+export KMP_DUPLICATE_LIB_OK=TRUE
+export KMP_WARNINGS=0
+"""

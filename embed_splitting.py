@@ -6,10 +6,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaLLM
 import pickle
 
-import torch
 from transformers import AutoTokenizer, AutoModel
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"
 
 def load_docs(pdf_folder = "./pdf_folder"):
     
