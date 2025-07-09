@@ -7,7 +7,7 @@ from prompts import prompt_template, contextual_prompt, chunk_runnable, metadata
 from langchain_ollama import OllamaLLM
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 from document_writing import DocumentLogger
-from session_history import get_session_history, session_exists, save_store
+from session_history import get_session_history, list_sessions, load_session_messages
 
 ensemble_retriever, semantic_retriever, bm25_retriever = get_retrievers()
 MODEL_NAME = "llama3.2"
@@ -24,16 +24,18 @@ history_aware_chain = RunnableWithMessageHistory(
 
 # Session selection loop
 while True:
+    sessions = list_sessions()
     session_id = input("Enter session ID to resume, or press Enter to start new: ").strip()
     if not session_id:
         session_id = str(uuid.uuid4())[:8]
         print(f"Starting new session: {session_id}")
         break
-    elif session_exists(session_id):
+    elif session_id in sessions:
         print(f"Resuming session: {session_id}")
+        load_session_messages(session_id)
         break
     else:
-        print(f"Session ID '{session_id}' not found. Available sessions: {list_sessions()}")
+        print(f"Session ID '{session_id}' not found. Available sessions: {sessions}")
 
 history = get_session_history(session_id)
 document = DocumentLogger(session_id)
@@ -48,7 +50,7 @@ while True:
 
     print(f"{user_input}\n\n\n")
     
-    MAX_HISTORY_TURNS = 1
+    MAX_HISTORY_TURNS = 2
     recontextual_chain = contextual_prompt | llm
     rephrased_question = recontextual_chain.invoke(
         {'chat_history': history.messages[-MAX_HISTORY_TURNS:],
