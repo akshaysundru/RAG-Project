@@ -1,21 +1,22 @@
 # RAG-Project
-Experimenting with Retrieval Augmented Generation, using various Ollama chatbots
+This project aims to experiment and develop AI agents and tools using Retrieval Augmented Generation (RAG), in specific a document writing tool and a basic chatbot enhanced by retrieval.
 
-To run the code as is make sure you have the following dependencies downloaded. This will be updated the further I get.
+## Brief overview of RAG
 
-- Ollama
-- Miniconda
-- ipykernel
-- Python + assoc. libraries
-- HTML/CSS/JS
-- Some form of DB, I'm using SQLite
+Anyone who has had any level of use with LLM's like ChatGPT know that when asking a question LLM's are great at quickly coming up with an coherent and concise answer that follows the specifications of the users prompt. However, we all know that in many instances these LLM's have many instances where they tend to 'hallucinate' details in their answer, or miss some key details in the answer which makes these prompts inaccurate or unsatisfying, and when further prompted there are plenty of times where these LLM's continue to create false data to support their claims, which is dangerous if people and companies continue to increasingly depend on these AI agents.
 
-Currently for prototyping I will be using Llama 3.2, as it appears to be a model that runs on my Macbook Pro M3 fine, though if i get a PC set up I would like to run the Llama 4 models.
+Thus, there are many proposed ways to eliminate or reduce these hallucinations, including LLM training, dataset pruning and prompt engineering. Among the bunch is a particularly powerful tool called Retrieval Augmented Generation, which aims to fix the issue by directly supplying a dataset of knowledge to query off of instead of hiding it behind embedded layers and layers of training data.
 
-## Progress Update
+RAG is pretty much explained by its title and can be broken down into the following sections:
 
-I have now got a prototype model working, using the Langchain framework and tutorial to develop said prototype. This prototype contains takes input files from a supplied folder through an os.walk(), then runs through those files through an embedding program to tokenise (convert to numbers) the text in the files and simultaneously creates chunks in the documents. After this, we create a retrieval object that when fed the input chunks calculates cosine similarity scores for each of the chunks and fetches the most relevant chunks (we've set k = 3).
+- Retrieval: This is the key step. Here we supply a corpus of documents in various forms (PDF, docx, HTML, JSON) and keep them in a storage folder. The central idea is in knowing the location or source of any information provided, thus when querying an LLM, we can always request sourcing to the file, which can be compared to the source material if need be. Documents in our storage are embeeded and stored in a vector store like FAISS and then passed through to the LLM. Retrieval saves us time and resources of having to get a model trained to work on our data, we can use a prebuilt LLM and simply pass through information we want it to query on.
+- Augmented Generation: We use a LLM of choice to make queries enhanced by the knowledge we've fed it. If our question is in the source we can answer it with sourcing included, otherwise we can either let the LLM answer based on prebuilt knowledge or restrict it from providing a potentially hallucinated response.
 
-After successfully implementing retrieval, we combine this and selected model into the pipeline, starting up the model with a supplied template, user inputs are fed into the context retriever, which the model uses to create an natural language response. I have specified in the template to only answer questions if there is relevant context.
 
-I currently have successfully run Llama 3.2 locally with an example output attached on the repo under the RAG_notebook.ipynb file, next step is to compile some research on RAG and build a simple pipeline. I will be uploading a folder with unit readers from different units.
+## Requirements
+
+All requirements can be found in the YAML file, which can be used to create the conda environment needed to run the programs, we are using the Langchain framework and tutorial as my base. I am also using VSCode as my IDE of choice for running and writing these files. Feel free to add any information in the PDF folders, though currently I haven't added support for other document types, though shouldn't take too long for most (hopefully!). Also make sure Ollama is installed and that you have llama 3.2 downloaded, if you wish to have other models to use feel free to run locally but I can currently only support llama 3.2.
+
+## Current Features
+
+Currently we have built a history aware chatbot which has persistent storage in a session logs folder, thus can be resumed at any time. I have also made a rudimentary document writer, which can store documents as a dict and write to a word doc but loading and editing features haven't been added yet.
