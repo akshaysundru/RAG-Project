@@ -11,6 +11,11 @@ def get_session_history(session_id):
         return load_session_messages(session_id)
     return store[session_id]
 
+def get_by_session_history(session_id):
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
+
 def list_sessions():
     return [f.replace('.json', '') for f in os.listdir(CHAT_LOG_DIR) if f.endswith('.json')]
 
