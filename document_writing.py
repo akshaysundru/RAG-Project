@@ -40,6 +40,7 @@ class DocumentWriter:
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
         self.doc_path = os.path.join(output_dir, f"{filename}.docx")
+        self.doc_strcuture = {}
 
         if os.path.exists(self.doc_path):
             self.document = Document(self.doc_path)
@@ -58,3 +59,12 @@ class DocumentWriter:
 
         heading = self.document.add_heading(user_input, 2)
         heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    def font_selection(self, user_input):
+        """Choosing font styles"""
+        return None
+
+
+    def load_doc_structure(self, document):
+        """Will later add editing capabilities"""
+        return None

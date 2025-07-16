@@ -1,6 +1,4 @@
 import uuid
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from vectorstore_retrievers import get_retrievers
 from prompts import prompt_template, contextual_prompt, chunk_runnable, metadata_runnable
@@ -8,15 +6,11 @@ from langchain_core.runnables import RunnableLambda, RunnableParallel
 from document_writing import DocumentLogger
 from session_history import get_session_history, list_sessions, load_session_messages
 from constants import llm, MODEL_NAME
+from chains import chain, history_aware_chain
 
-chain = prompt_template | llm
+chain = chain
 
-history_aware_chain = RunnableWithMessageHistory(
-    chain,
-    get_session_history=get_session_history,
-    input_messages_key="input",
-    history_messages_key="chat_history"
-)
+history_aware_chain = history_aware_chain
 
 def chat_pipeline():
     # Session selection loop
