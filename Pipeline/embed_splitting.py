@@ -4,14 +4,14 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaLLM
+from constants import PDF_DIR, SPLITS_CACHE_PATH, EMBEDDING_MODEL_PATH
 import pickle
-
 import torch
 from transformers import AutoTokenizer, AutoModel
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def load_docs(pdf_folder = "./pdf_folder"):
+def load_docs(pdf_folder = PDF_DIR):
     
     document_loader = []
 
@@ -48,8 +48,6 @@ def embed_splitting(document_loader, embedding_model):
 
     return embeddings, splits
 
-SPLITS_CACHE_PATH = "splits_cache.pkl"
-
 def get_splits(document_loader, embedding_model):
     if os.path.exists(SPLITS_CACHE_PATH):
         print("Loading cached splits from disk...")
@@ -62,4 +60,13 @@ def get_splits(document_loader, embedding_model):
         with open(SPLITS_CACHE_PATH, "wb") as f:
             pickle.dump(splits, f)
     return embeddings, splits   
+
+if __name__ == "__main__":
+    documents = load_docs()
+    print(len(documents))
+    embeddings, splits = get_splits(documents, EMBEDDING_MODEL_PATH)
+    print(embeddings)
+    print(len(splits))
+
+    
 

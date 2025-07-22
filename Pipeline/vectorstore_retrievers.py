@@ -1,15 +1,15 @@
 import os
 import faiss
+from httpx import get
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
+from constants import PDF_DIR, FAISS_INDEX_PATH, EMBEDDING_MODEL_PATH
 from embed_splitting import load_docs, get_splits
 
-EMBEDDING_MODEL_PATH = "./local_models/all-MiniLM-L6-v2"
-FAISS_INDEX_PATH = "faiss_index"
-
-def build_vector_store(documents, embeddings, splits):
+FAISS_INDEX_PATH = "RAG-Project/faiss_index"
+def build_vector_store(embeddings, splits):
     dim = len(embeddings.embed_query("test sentence"))
 
     # Create FAISS CPU index first
@@ -26,22 +26,27 @@ def build_vector_store(documents, embeddings, splits):
         print("Building FAISS index from scratch...")
         vector_store = FAISS(
             embedding_function=embeddings,
-            index=gpu_index,   # This is now the GPU index
+            index=gpu_index,
             docstore=InMemoryDocstore(),
             index_to_docstore_id={},
         )
         vector_store.add_documents(splits)
+
+        # Convert GPU index back to CPU before saving
+        cpu_index_to_save = faiss.index_gpu_to_cpu(vector_store.index)
+        vector_store.index = cpu_index_to_save
+
         vector_store.save_local(FAISS_INDEX_PATH)
 
     return vector_store
 
-def get_retrievers(pdf_folder="./pdf_folder", k=4):
+def get_retrievers(pdf_folder=PDF_DIR, k=4):
     # Load documents and splits
     documents = load_docs(pdf_folder)
     embeddings, splits = get_splits(documents, EMBEDDING_MODEL_PATH)
 
     # Build vector store
-    vector_store = build_vector_store(documents, embeddings, splits)
+    vector_store = build_vector_store(embeddings, splits)
 
     # Create retrievers
     semantic_retriever = vector_store.as_retriever(search_kwargs={'k': k})
@@ -55,3 +60,9 @@ def get_retrievers(pdf_folder="./pdf_folder", k=4):
     )
 
     return ensemble_retriever, semantic_retriever, bm25_retriever
+
+if __name__ == "__main__":
+    ensemble_retriever, semantic_retriever, bm25_retriever = get_retrievers()
+    print(ensemble_retriever)
+    print(semantic_retriever)
+    print(bm25_retriever)

@@ -2,9 +2,10 @@ import pickle
 import os
 from langchain_community.chat_message_histories import ChatMessageHistory, FileChatMessageHistory
 import json
+from constants import SESSION_DIR
 
 store = {}
-CHAT_LOG_DIR = "./session_logs"
+CHAT_LOG_DIR = SESSION_DIR
 
 def get_session_history(session_id):
     if session_id not in store:
