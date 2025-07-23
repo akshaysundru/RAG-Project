@@ -79,4 +79,5 @@ def chat_pipeline():
 
     print(get_session_history(session_id).messages)
 
-chat_pipeline()
+if __name__ == "__main__":
+    chat_pipeline()

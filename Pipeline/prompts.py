@@ -73,7 +73,7 @@ def metadata_parser(results):
 
     for doc in results:
         source = doc.metadata["source"]
-        page = doc.metadata["page_label"]
+        page = doc.metadata["page"]
 
         if source in metadata_files:
             if page not in metadata_files[source]:

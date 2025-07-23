@@ -1,12 +1,11 @@
 import os
 import faiss
-from httpx import get
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
 from constants import PDF_DIR, FAISS_INDEX_PATH, EMBEDDING_MODEL_PATH
-from embed_splitting import load_docs, get_splits
+from embed_splitting import load_docs, split_single_document, create_splits, embeddings
 
 FAISS_INDEX_PATH = "RAG-Project/faiss_index"
 def build_vector_store(embeddings, splits):
@@ -21,7 +20,14 @@ def build_vector_store(embeddings, splits):
 
     if os.path.exists(FAISS_INDEX_PATH):
         print("Loading FAISS index from disk...")
-        vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings=embeddings, allow_dangerous_deserialization=True)
+        vector_store = FAISS.load_local(
+            FAISS_INDEX_PATH,
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True
+        )
+        # Move FAISS index back to GPU
+        gpu_res = faiss.StandardGpuResources()
+        vector_store.index = faiss.index_cpu_to_gpu(gpu_res, 0, vector_store.index)
     else:
         print("Building FAISS index from scratch...")
         vector_store = FAISS(
@@ -43,10 +49,11 @@ def build_vector_store(embeddings, splits):
 def get_retrievers(pdf_folder=PDF_DIR, k=4):
     # Load documents and splits
     documents = load_docs(pdf_folder)
-    embeddings, splits = get_splits(documents, EMBEDDING_MODEL_PATH)
+    embedding = embeddings(EMBEDDING_MODEL_PATH)
+    splits = create_splits(documents)
 
     # Build vector store
-    vector_store = build_vector_store(embeddings, splits)
+    vector_store = build_vector_store(embedding, splits)
 
     # Create retrievers
     semantic_retriever = vector_store.as_retriever(search_kwargs={'k': k})
