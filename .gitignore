@@ -10,3 +10,4 @@ chat_logs/
 session_logs/
 Pipeline/a.ipynb
 bm25_cache.pkl
+processed_docs.json

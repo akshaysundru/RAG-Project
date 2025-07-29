@@ -8,7 +8,6 @@ from constants import PDF_DIR, FAISS_INDEX_PATH, EMBEDDING_MODEL_PATH, BM25_CACH
 from embed_splitting import load_docs, create_splits, embeddings
 import pickle
 
-FAISS_INDEX_PATH = "RAG-Project/faiss_index"
 def build_vector_store(embeddings, splits):
     dim = len(embeddings.embed_query("test sentence"))
 
