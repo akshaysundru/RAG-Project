@@ -9,3 +9,4 @@ session_store.pkl
 chat_logs/
 session_logs/
 Pipeline/a.ipynb
+bm25_cache.pkl

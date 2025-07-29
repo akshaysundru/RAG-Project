@@ -3,9 +3,10 @@ import os
 from datetime import datetime
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import json
+from constants import CHAT_LOG_DIR
 
 class DocumentLogger:
-    def __init__(self, session_id, output_dir = "./chat_logs"):
+    def __init__(self, session_id, output_dir = CHAT_LOG_DIR):
         self.session_id = session_id
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
@@ -36,7 +37,7 @@ class DocumentLogger:
         self.document.save(self.doc_path)
 
 class DocumentWriter:
-    def __init__(self, filename, output_dir = "./chat_logs"):
+    def __init__(self, filename, output_dir = CHAT_LOG_DIR):
         self.filename = filename
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)

@@ -4,8 +4,9 @@ from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
-from constants import PDF_DIR, FAISS_INDEX_PATH, EMBEDDING_MODEL_PATH
-from embed_splitting import load_docs, split_single_document, create_splits, embeddings
+from constants import PDF_DIR, FAISS_INDEX_PATH, EMBEDDING_MODEL_PATH, BM25_CACHE_PATH
+from embed_splitting import load_docs, create_splits, embeddings
+import pickle
 
 FAISS_INDEX_PATH = "RAG-Project/faiss_index"
 def build_vector_store(embeddings, splits):
@@ -26,7 +27,6 @@ def build_vector_store(embeddings, splits):
             allow_dangerous_deserialization=True
         )
         # Move FAISS index back to GPU
-        gpu_res = faiss.StandardGpuResources()
         vector_store.index = faiss.index_cpu_to_gpu(gpu_res, 0, vector_store.index)
     else:
         print("Building FAISS index from scratch...")
@@ -46,6 +46,19 @@ def build_vector_store(embeddings, splits):
 
     return vector_store
 
+def get_bm25_retriever(splits, k=4):
+    if os.path.exists(BM25_CACHE_PATH):
+        print("Loading cached BM25 retriever from disk...")
+        with open(BM25_CACHE_PATH, "rb") as f:
+            bm25_retriever = pickle.load(f)
+    else:
+        print("Building new BM25 retriever...")
+        bm25_retriever = BM25Retriever.from_documents(splits)
+        bm25_retriever.k = k
+        with open(BM25_CACHE_PATH, "wb") as f:
+            pickle.dump(bm25_retriever, f)
+    return bm25_retriever
+
 def get_retrievers(pdf_folder=PDF_DIR, k=4):
     # Load documents and splits
     documents = load_docs(pdf_folder)
@@ -57,8 +70,7 @@ def get_retrievers(pdf_folder=PDF_DIR, k=4):
 
     # Create retrievers
     semantic_retriever = vector_store.as_retriever(search_kwargs={'k': k})
-    bm25_retriever = BM25Retriever.from_documents(splits)
-    bm25_retriever.k = k
+    bm25_retriever = get_bm25_retriever(splits)
 
     # Ensemble retriever
     ensemble_retriever = EnsembleRetriever(

@@ -9,6 +9,8 @@ CHAT_LOG_DIR = os.path.join(PROJECT_ROOT, "chat_logs")
 EMBEDDING_MODEL_PATH = os.path.join(PROJECT_ROOT, "local_models/all-MiniLM-L6-v2")
 SESSION_DIR = os.path.join(PROJECT_ROOT, "session_logs")
 FAISS_INDEX_PATH = os.path.join(PROJECT_ROOT, "faiss_index")
+BM25_CACHE_PATH = os.path.join(PROJECT_ROOT, "bm25_cache.pkl")
+DOCUMENTS_SPLITTED_PATH = os.path.join(PROJECT_ROOT, "processed_docs.json")
 
 MODEL_NAME = "llama3.2"
 llm = OllamaLLM(model = MODEL_NAME)

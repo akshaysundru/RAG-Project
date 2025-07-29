@@ -1,5 +1,6 @@
 import os
-from constants import PDF_DIR, SPLITS_CACHE_PATH, EMBEDDING_MODEL_PATH
+import json
+from constants import PDF_DIR, SPLITS_CACHE_PATH, EMBEDDING_MODEL_PATH, DOCUMENTS_SPLITTED_PATH
 import torch
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -15,8 +16,11 @@ def load_docs(folder = PDF_DIR):
 
     for root, dirs, files in os.walk(folder):
         for file in files:
-            full_path = os.path.join(root, file)
+            full_path = os.path.abspath(os.path.join(root, file))
             document_loader.append(full_path)
+
+    with open(DOCUMENTS_SPLITTED_PATH, "w", encoding="utf-8") as f:
+        json.dump({'files': document_loader}, f, indent=2)
 
     return document_loader
 
