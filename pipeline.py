@@ -78,3 +78,6 @@ def chat_pipeline():
             document.write_interaction(rephrased_question, response, context_injection['metadata'])
 
     print(get_session_history(session_id).messages)
+
+if __name__ == "__main__":
+    chat_pipeline()
