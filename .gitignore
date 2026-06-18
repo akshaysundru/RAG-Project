@@ -8,3 +8,5 @@ splits_cache.pkl
 session_store.pkl
 chat_logs/
 session_logs/
+processed_docs.json
+pdf_folder/
